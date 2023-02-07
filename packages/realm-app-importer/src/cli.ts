@@ -23,7 +23,7 @@ import http from "http";
 import chalk from "chalk";
 
 import { AppImporter } from "./AppImporter";
-import { Credentials } from "./sharedTypes";
+import { Credentials } from "./types";
 import { AppImportServer } from "./AppImportServer";
 
 /* eslint-disable no-console */
