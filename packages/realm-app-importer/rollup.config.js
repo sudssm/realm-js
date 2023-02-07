@@ -65,6 +65,6 @@ export default [
       file: pkg.types,
       format: "es",
     },
-    plugins: [dts(), nodeResolve()],
+    plugins: [dts()],
   },
 ];
