@@ -104,8 +104,12 @@ function TableView(props: { realm: Realm; table: string; rerender: number }) {
   }
 
   const objectsDom = results.slice(0, storedLimit).map(function (object) {
+    const json = object.toJSON();
     const key = object._objectKey();
     Object.keys(object).forEach((field) => {
+      if (typeof json[field] == "object" && !(json[field] instanceof BSON.ObjectId)) {
+        return;
+      }
       fieldSet.add(field);
     });
     return (
@@ -299,7 +303,6 @@ function ObjectView(props: { realm: Realm; object: Realm.Object; rerender: numbe
       editorRef.current?.jsonEditor.focusTarget,
       editorRef.current?.jsonEditor.node,
     );
-    console.log(target);
     if (!target) {
       // could not find a target based on dom; diff the data instead
       const diff = diffNewData(serialized, editorRef.current?.jsonEditor.get());
