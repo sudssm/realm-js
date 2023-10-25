@@ -30,7 +30,12 @@ import { Credentials } from "realm";
  * authenticated and `RealmProvider` for opening a Realm.
  */
 
-export function AuthenticatedApp(props: { app: Realm.App; realm: Realm; onLogout: () => void }) {
+export function AuthenticatedApp(props: {
+  app: Realm.App;
+  realm: Realm;
+  onLogout: () => void;
+  setSyncPause: (paused: boolean) => void;
+}) {
   const [rerender, setRerender] = useState(0); // hack to force a rerender
   const tablesRef = useRef<string[]>([]);
   const realm = props.realm;

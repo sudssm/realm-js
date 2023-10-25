@@ -21,6 +21,7 @@ import styles from "../styles/PageLayout.module.css";
 
 type PageLayoutProps = {
   app: Realm.App;
+  setSyncPause: (paused: boolean) => void;
   onLogout: () => void;
   children: React.ReactNode;
 };
@@ -28,11 +29,11 @@ type PageLayoutProps = {
 /**
  * Wrapper around the `Outlet` for providing a consistent layout.
  */
-export function PageLayout({ app, children, onLogout }: PageLayoutProps) {
+export function PageLayout(props: PageLayoutProps) {
   return (
     <div className={styles.container}>
-      <NavBar app={app} onLogout={onLogout} />
-      <main>{children}</main>
+      <NavBar {...props} />
+      <main>{props.children}</main>
     </div>
   );
 }

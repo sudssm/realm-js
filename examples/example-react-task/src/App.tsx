@@ -42,10 +42,18 @@ function App() {
     setRealm(realm);
   }, []);
 
+  function setSyncPause(pause: boolean): void {
+    if (pause) {
+      realm?.syncSession?.pause();
+      return;
+    }
+    realm?.syncSession?.resume();
+  }
+
   return (
     <div className={styles.container}>
       {app && app.currentUser && realm ? (
-        <AuthenticatedApp onLogout={onLogout} app={app} realm={realm} />
+        <AuthenticatedApp onLogout={onLogout} app={app} realm={realm} setSyncPause={setSyncPause} />
       ) : (
         <LoginPage setApp={handleSetApp} />
       )}

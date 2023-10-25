@@ -16,22 +16,34 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
+import { useState } from "react";
 import styles from "../styles/NavBar.module.css";
 
 /**
  * Nav bar providing a button for logging out.
  */
-export function NavBar(props: { app: Realm.App; onLogout: () => void }) {
+export function NavBar(props: { app: Realm.App; onLogout: () => void; setSyncPause: (paused: boolean) => void }) {
+  const [paused, setPaused] = useState(false);
+
   const handleLogout = () => {
     props.app.currentUser?.logOut();
     props.onLogout();
   };
+  const handlePauseClick = () => {
+    setPaused(!paused);
+    props.setSyncPause(!paused);
+  };
+
   return (
     <nav className={styles.nav}>
       <div className={styles.titleContainer}>
         <p className={styles.title}>{props.app.currentUser?.profile.email}</p>
         <p className={styles.info}>{`App ID: ${props.app.id}`}</p>
       </div>
+      <button className={styles.button} onClick={handlePauseClick}>
+        {paused ? "Resume" : "Pause"} Sync
+      </button>
+
       <button className={styles.button} onClick={handleLogout}>
         Log out
       </button>

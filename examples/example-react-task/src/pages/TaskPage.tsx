@@ -21,6 +21,7 @@ import { BSON } from "realm";
 // import { TaskList } from "../components/TaskList";
 // import { useTaskManager } from "../hooks/useTaskManager";
 import styles from "../styles/TaskPage.module.css";
+import "../styles/static.css";
 import React, { useEffect, useRef, useState } from "react";
 import { Node } from "jsoneditor";
 import Creatable from "react-select/creatable";
@@ -47,6 +48,7 @@ function TableView(props: { realm: Realm; table: string; rerender: number }) {
   const [filter, setFilter] = useState("truepredicate");
   const [objects, setObjects] = useState<any>();
   const [sort, setSort] = useState("");
+  const [sortDir, setSortDir] = useState(false);
   const [limit, setLimit] = useState(10); // for view
   const [storedLimit, setStoredLimit] = useState(limit); // for use
   const [error, setError] = useState("");
@@ -73,11 +75,7 @@ function TableView(props: { realm: Realm; table: string; rerender: number }) {
         subs.add(realm.objects(props.table).filtered(query), { name: props.table });
       });
 
-      let results = props.realm.objects(props.table).filtered(filter);
-      if (sort) {
-        results = results.sorted(sort);
-      }
-      setObjects(results);
+      setObjects(props.realm.objects(props.table).filtered(filter));
     } catch (e: any) {
       console.error(e);
       setError(e.message || "invalid query");
@@ -100,7 +98,12 @@ function TableView(props: { realm: Realm; table: string; rerender: number }) {
 
   const fieldSet = new Set();
 
-  const objectsDom = (objects as Realm.Results<Realm.Object>).slice(0, storedLimit).map(function (object) {
+  let results = objects as Realm.Results<Realm.Object>;
+  if (sort) {
+    results = results.sorted(sort, sortDir);
+  }
+
+  const objectsDom = results.slice(0, storedLimit).map(function (object) {
     const key = object._objectKey();
     Object.keys(object).forEach((field) => {
       fieldSet.add(field);
@@ -118,8 +121,6 @@ function TableView(props: { realm: Realm; table: string; rerender: number }) {
       label: field,
     };
   });
-  console.log(fieldSet);
-  console.log(sortOptions);
 
   const count = (objects as Realm.Results<Realm.Object>).length;
 
@@ -132,6 +133,7 @@ function TableView(props: { realm: Realm; table: string; rerender: number }) {
         <label>Query</label>
         <input
           className={styles.input}
+          style={{ fontFamily: "monospace" }}
           type="text"
           placeholder="truepredicate"
           value={query}
@@ -147,6 +149,7 @@ function TableView(props: { realm: Realm; table: string; rerender: number }) {
           onChange={(e) => setFilter(e.target.value)}
           onKeyUp={updateIfEnter}
         />
+        <p />
         <label>Limit</label>
         <input
           className={styles.input}
@@ -162,7 +165,12 @@ function TableView(props: { realm: Realm; table: string; rerender: number }) {
           options={sortOptions}
           onChange={(value) => {
             setSort((value?.value as string) || "");
-            updateQuery(query, filter, limit, (value?.value as string) || "");
+          }}
+        />
+        <i
+          className={styles.arrow + " " + (sortDir ? styles.down : styles.up)}
+          onClick={() => {
+            setSortDir(!sortDir);
           }}
         />
 
@@ -208,7 +216,8 @@ function serializeForView(object: Realm.Object): Record<string, any> {
   return out;
 }
 
-function diffNewData(previous: Record<string, any>, update: Record<string, any>): [string[], any] {
+function diffNewData(previous: Record<string, any>, update: Record<string, any>): [string[], any][] {
+  const diffs: [string[], any][] = [];
   const entries = Object.entries(update);
   for (let index = 0; index < entries.length; index++) {
     const [k, v] = entries[index];
@@ -221,18 +230,21 @@ function diffNewData(previous: Record<string, any>, update: Record<string, any>)
       if ((previous[k] && !v) || (v && !previous[k])) {
         return [[k], v];
       }
-      const [path, value] = diffNewData(v, previous[k]);
-      if (!value) {
+      const results = diffNewData(v, previous[k]);
+      if (!results.length) {
         continue;
       }
 
-      path.unshift(k);
-      return [path, value];
+      results.forEach(([path, value]) => {
+        path.unshift(k);
+      });
+
+      diffs.concat(results);
     }
 
-    return [[k], v];
+    diffs.push([[k], v]);
   }
-  return [[], null];
+  return diffs;
 }
 
 function ObjectView(props: { realm: Realm; object: Realm.Object; rerender: number }) {
@@ -241,30 +253,32 @@ function ObjectView(props: { realm: Realm; object: Realm.Object; rerender: numbe
   const editorRef = useRef<Editor>(null);
 
   useEffect(() => {
-    const [path, value] = diffNewData(previous, serialized);
-    if (!value) {
+    editorRef.current?.jsonEditor.update(serialized);
+    setPrevious(serialized);
+
+    const diffs = diffNewData(previous, serialized);
+    if (!diffs.length) {
       return;
     }
 
-    editorRef.current?.jsonEditor.update(serialized);
-
-    var node = editorRef.current?.jsonEditor.node as Node;
-    path.forEach((element) => {
-      node.childs?.forEach((child) => {
-        if (child.field === element) {
-          node = child;
-        }
+    diffs.forEach(([path, value]) => {
+      var node = editorRef.current?.jsonEditor.node as Node;
+      path.forEach((element) => {
+        node.childs?.forEach((child) => {
+          if (child.field === element) {
+            node = child;
+          }
+        });
       });
-    });
 
-    document.querySelectorAll("." + styles.highlight).forEach((el) => {
-      el.classList.remove(styles.highlight);
+      node.dom.tree.classList.add(styles.highlight);
+      setTimeout(() => {
+        node.dom.tree.classList.remove(styles.highlight);
+      }, 10);
     });
-    node.dom.tree.classList.add(styles.highlight);
-    setPrevious(serialized);
   }, [props.rerender]);
 
-  const updateData = (target: any, path: string[]) => {
+  const updateData = (value: any, path: string[]) => {
     props.realm.write(() => {
       var obj: Record<string, any> = props.object;
       for (let index = 0; index < path.length - 1; index++) {
@@ -272,7 +286,6 @@ function ObjectView(props: { realm: Realm; object: Realm.Object; rerender: numbe
       }
 
       const field = path[path.length - 1];
-      var value = target.value;
       if (obj[field] instanceof BSON.ObjectId) {
         value = new BSON.ObjectId(value);
         // TODO object id changes are actually not allowed by realm
@@ -286,13 +299,34 @@ function ObjectView(props: { realm: Realm; object: Realm.Object; rerender: numbe
       editorRef.current?.jsonEditor.focusTarget,
       editorRef.current?.jsonEditor.node,
     );
+    console.log(target);
     if (!target) {
+      // could not find a target based on dom; diff the data instead
+      const diff = diffNewData(serialized, editorRef.current?.jsonEditor.get());
+      diff.forEach(([path, value]) => {
+        updateData(value, path);
+      });
       return;
     }
+
     target.dom.value.addEventListener(
       "focusout",
       () => {
-        updateData(target, path);
+        updateData(target.value, path);
+      },
+      { once: true },
+    );
+    target.dom.value.addEventListener(
+      "keydown",
+      (e) => {
+        if (e.key !== "Enter") {
+          return;
+        }
+        e.stopImmediatePropagation();
+        e.stopPropagation();
+        e.preventDefault();
+        target.dom.value.blur();
+        return false;
       },
       { once: true },
     );

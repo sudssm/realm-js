@@ -48,6 +48,7 @@ label {
 
 .highlight {
   background-color: lime;
+  transition: background-color 0s linear !important;
 }
 
 .error {
@@ -76,4 +77,23 @@ label {
 
 .button:hover {
   background-color: var(--primary-color);
+}
+
+.arrow {
+  border: solid black;
+  border-width: 0 4px 4px 0;
+  display: inline-block;
+  padding: 4px;
+  margin-left: 20px;
+  cursor: pointer;
+}
+
+.up {
+  transform: rotate(-135deg);
+  -webkit-transform: rotate(-135deg);
+}
+
+.down {
+  transform: rotate(45deg);
+  -webkit-transform: rotate(45deg);
 }
