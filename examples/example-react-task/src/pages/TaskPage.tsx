@@ -45,9 +45,10 @@ function TableView(props: { realm: Realm; table: string; rerender: number }) {
   const [query, setQuery] = useState("truepredicate");
   const [filter, setFilter] = useState("truepredicate");
   const [objects, setObjects] = useState<any>();
+  const [limit, setLimit] = useState(10);
   const [error, setError] = useState("");
 
-  const updateQuery = async (query: string, filter: string) => {
+  const updateQuery = async (query: string, filter: string, limit: number) => {
     setError("");
     if (!query) {
       query = "truepredicate";
@@ -57,13 +58,19 @@ function TableView(props: { realm: Realm; table: string; rerender: number }) {
       filter = "truepredicate";
       setFilter(filter);
     }
+    if (!limit) {
+      limit = 10;
+      setLimit(10);
+    }
+
     try {
       await realm.subscriptions.update((subs, realm) => {
         subs.removeByName(props.table);
         subs.add(realm.objects(props.table).filtered(query), { name: props.table });
       });
 
-      setObjects(props.realm.objects(props.table).filtered(filter));
+      const results = props.realm.objects(props.table).filtered(filter);
+      setObjects(results.slice(0, limit));
     } catch (e: any) {
       console.error(e);
       setError(e.message || "invalid query");
@@ -71,10 +78,10 @@ function TableView(props: { realm: Realm; table: string; rerender: number }) {
   };
 
   useEffect(() => {
-    updateQuery("truepredicate", "truepredicate");
+    updateQuery(query, filter, limit);
   }, []);
 
-  const objectsDom = (objects as Realm.Results<Realm.Object>)?.map(function (object) {
+  const objectsDom = (objects as Realm.Object[])?.map(function (object) {
     const key = object._objectKey();
     return (
       <p style={{ paddingBottom: 15 }}>
@@ -104,13 +111,22 @@ function TableView(props: { realm: Realm; table: string; rerender: number }) {
           defaultValue={"truepredicate"}
           onChange={(e) => setFilter(e.target.value)}
         />
+        <label>Limit</label>
+        <input
+          className={styles.input}
+          type="text"
+          placeholder="10"
+          value={limit}
+          defaultValue={10}
+          onChange={(e) => setLimit(parseInt(e.target.value) || 10)}
+        />
 
         <div className={styles.buttons}>
           <button
             className={styles.button}
             onClick={(e) => {
               e.preventDefault();
-              updateQuery(query, filter);
+              updateQuery(query, filter, limit);
             }}
           >
             Update
