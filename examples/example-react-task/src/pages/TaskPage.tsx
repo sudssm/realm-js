@@ -46,7 +46,8 @@ function TableView(props: { realm: Realm; table: string; rerender: number }) {
   const [filter, setFilter] = useState("truepredicate");
   const [objects, setObjects] = useState<any>();
   const [sort, setSort] = useState("");
-  const [limit, setLimit] = useState(10);
+  const [limit, setLimit] = useState(10); // for view
+  const [storedLimit, setStoredLimit] = useState(limit); // for use
   const [error, setError] = useState("");
 
   const updateQuery = async (query: string, filter: string, limit: number, sort: string) => {
@@ -63,6 +64,7 @@ function TableView(props: { realm: Realm; table: string; rerender: number }) {
       limit = 10;
       setLimit(10);
     }
+    setStoredLimit(limit);
 
     try {
       await realm.subscriptions.update((subs, realm) => {
@@ -74,7 +76,7 @@ function TableView(props: { realm: Realm; table: string; rerender: number }) {
       if (sort) {
         results = results.sorted(sort);
       }
-      setObjects(results.slice(0, limit));
+      setObjects(results);
     } catch (e: any) {
       console.error(e);
       setError(e.message || "invalid query");
@@ -82,10 +84,15 @@ function TableView(props: { realm: Realm; table: string; rerender: number }) {
   };
 
   useEffect(() => {
+    console.log("initial update query");
     updateQuery(query, filter, limit, sort);
   }, []);
 
-  const objectsDom = (objects as Realm.Object[])?.map(function (object) {
+  if (!objects) {
+    return <></>;
+  }
+
+  const objectsDom = (objects as Realm.Results<Realm.Object>).slice(0, storedLimit).map(function (object) {
     const key = object._objectKey();
     return (
       <div key={key} style={{ paddingBottom: 15 }}>
