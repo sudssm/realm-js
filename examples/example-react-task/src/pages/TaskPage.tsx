@@ -186,7 +186,7 @@ function ObjectView(props: { realm: Realm; object: Realm.Object; rerender: numbe
       return;
     }
 
-    editorRef.current?.jsonEditor.set(serialized);
+    editorRef.current?.jsonEditor.update(serialized);
 
     var node = editorRef.current?.jsonEditor.node as Node;
     path.forEach((element) => {
@@ -197,8 +197,10 @@ function ObjectView(props: { realm: Realm; object: Realm.Object; rerender: numbe
       });
     });
 
-    node.dom.tree.style.background = "lime";
-
+    document.querySelectorAll("." + styles.highlight).forEach((el) => {
+      el.classList.remove(styles.highlight);
+    });
+    node.dom.tree.classList.add(styles.highlight);
     setPrevious(serialized);
   }, [props.rerender]);
 

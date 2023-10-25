@@ -37,6 +37,10 @@ h1 {
   color: var(--gray);
 }
 
+.highlight {
+  background-color: lime;
+}
+
 .error {
   padding-top: 6px;
   padding-left: 10px;
