@@ -23,6 +23,7 @@ import { BSON } from "realm";
 import styles from "../styles/TaskPage.module.css";
 import React, { useEffect, useRef, useState } from "react";
 import { Node } from "jsoneditor";
+import Creatable from "react-select/creatable";
 
 /**
  * Displays the list of tasks as well as buttons for performing
@@ -83,8 +84,13 @@ function TableView(props: { realm: Realm; table: string; rerender: number }) {
     }
   };
 
+  function updateIfEnter(e: React.KeyboardEvent) {
+    if (e.key === "Enter") {
+      updateQuery(query, filter, limit, sort);
+    }
+  }
+
   useEffect(() => {
-    console.log("initial update query");
     updateQuery(query, filter, limit, sort);
   }, []);
 
@@ -92,17 +98,36 @@ function TableView(props: { realm: Realm; table: string; rerender: number }) {
     return <></>;
   }
 
+  const fieldSet = new Set();
+
   const objectsDom = (objects as Realm.Results<Realm.Object>).slice(0, storedLimit).map(function (object) {
     const key = object._objectKey();
+    Object.keys(object).forEach((field) => {
+      fieldSet.add(field);
+    });
     return (
       <div key={key} style={{ paddingBottom: 15 }}>
         <ObjectView realm={props.realm} object={object} rerender={props.rerender} />
       </div>
     );
   });
+
+  const sortOptions = [...fieldSet].map(function (field) {
+    return {
+      value: field,
+      label: field,
+    };
+  });
+  console.log(fieldSet);
+  console.log(sortOptions);
+
+  const count = (objects as Realm.Results<Realm.Object>).length;
+
   return (
     <>
-      <h1>{props.table}</h1>
+      <h1>
+        {props.table} ({count})
+      </h1>
       <div className="input-group">
         <label>Query</label>
         <input
@@ -111,6 +136,7 @@ function TableView(props: { realm: Realm; table: string; rerender: number }) {
           placeholder="truepredicate"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onKeyUp={updateIfEnter}
         />
         <label>Filter</label>
         <input
@@ -119,6 +145,7 @@ function TableView(props: { realm: Realm; table: string; rerender: number }) {
           placeholder="truepredicate"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
+          onKeyUp={updateIfEnter}
         />
         <label>Limit</label>
         <input
@@ -127,14 +154,16 @@ function TableView(props: { realm: Realm; table: string; rerender: number }) {
           placeholder="10"
           value={limit}
           onChange={(e) => setLimit(parseInt(e.target.value) || 10)}
+          onKeyUp={updateIfEnter}
         />
         <label>Sort</label>
-        <input
-          className={styles.input}
-          type="text"
-          placeholder="fieldname"
-          value={sort}
-          onChange={(e) => setSort(e.target.value)}
+        <Creatable
+          className={styles.sort}
+          options={sortOptions}
+          onChange={(value) => {
+            setSort((value?.value as string) || "");
+            updateQuery(query, filter, limit, (value?.value as string) || "");
+          }}
         />
 
         <div className={styles.buttons}>
