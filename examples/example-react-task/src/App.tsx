@@ -15,44 +15,40 @@
 // limitations under the License.
 //
 ////////////////////////////////////////////////////////////////////////////
+import { useState, useCallback, useEffect } from "react";
 
-import { RouterProvider, createBrowserRouter } from 'react-router-dom';
-import { AppProvider } from '@realm/react';
+import { AuthenticatedApp } from "./AuthenticatedApp";
+import styles from "./styles/App.module.css";
+import LoginPage from "./pages/LoginPage";
 
-import { AuthenticatedApp } from './AuthenticatedApp';
-import { ErrorPage } from './pages/ErrorPage';
-import { LoginPage } from './pages/LoginPage';
-import { TaskPage } from './pages/TaskPage';
-import config from './atlas-app-services/config.json';
-import styles from './styles/App.module.css';
-
-const router = createBrowserRouter([
-  {
-    path: '/',
-    element: <LoginPage />,
-    errorElement: <ErrorPage />,
-  },
-  {
-    element: <AuthenticatedApp />,
-    children: [
-      {
-        path: 'tasks',
-        element: <TaskPage />
-      }
-    ]
-  }
-]);
-
-/**
- * The root React component which renders `@realm/react`'s `AppProvider`
- * for instantiation an Atlas App Services App.
- */
 function App() {
+  const [app, setApp] = useState<Realm.App>();
+  const [realm, setRealm] = useState<Realm>();
+  const onLogout = useCallback(() => {
+    setApp(undefined);
+    realm?.close();
+  }, []);
+
+  const handleSetApp = useCallback(async (app: Realm.App) => {
+    setApp(app);
+
+    const realm = await Realm.open({
+      sync: {
+        user: app.currentUser!,
+        flexible: true,
+      },
+    });
+
+    setRealm(realm);
+  }, []);
+
   return (
     <div className={styles.container}>
-      <AppProvider id={config.ATLAS_APP_ID}>
-        <RouterProvider router={router} />
-      </AppProvider>
+      {app && app.currentUser && realm ? (
+        <AuthenticatedApp onLogout={onLogout} app={app} realm={realm} />
+      ) : (
+        <LoginPage setApp={handleSetApp} />
+      )}
     </div>
   );
 }

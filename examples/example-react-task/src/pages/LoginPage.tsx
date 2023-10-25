@@ -16,99 +16,196 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
-import { FormEvent, useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
-import { AuthOperationName, useApp, useEmailPasswordAuth } from '@realm/react';
+import { useEffect, useState } from "react";
+import { Realm, Credentials } from "realm";
 
-import logo from '../assets/atlas-app-services.png';
-import styles from '../styles/LoginPage.module.css';
+import logo from "../assets/atlas-app-services.png";
+import styles from "../styles/LoginPage.module.css";
+import { parse } from "@typescript-eslint/parser";
 
-/**
- * Screen for registering and/or logging in to the App Services App.
- */
-export function LoginPage() {
-  const atlasApp = useApp();
-  const { register, logIn, result } = useEmailPasswordAuth();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [authRequest, setAuthRequest] = useState<'login' | 'register'>('login');
+enum AuthProvider {
+  UserPassword = "username/password",
+  Anonymous = "anonymous",
+  APIKey = "apikey",
+}
 
-  // Automatically log in the user after successful registration.
-  useEffect(() => {
-    if (result.operation === AuthOperationName.Register && result.success) {
-      logIn({ email, password });
+interface LoginProps {
+  setApp?: (app: Realm.App) => void;
+}
+const LOCAL_STORAGE_KEY = "stitchutils_app";
+
+export default function LoginPage(props: LoginProps) {
+  const [baseURL, setBaseURL] = useState<string>("https://realm.mongodb.com");
+  const [appID, setAppID] = useState<string>("");
+  const [apiKey, setApiKey] = useState<string>("");
+  const [username, setUsername] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [loginError, setLoginError] = useState<string>("");
+  const [authProvider, setAuthProvider] = useState<AuthProvider>(AuthProvider.Anonymous);
+
+  async function tryLogin(
+    baseURL: string,
+    appID: string,
+    apiKey: string,
+    username: string,
+    password: string,
+    authProvider: string,
+  ) {
+    let credentials;
+    if (authProvider === AuthProvider.Anonymous) {
+      credentials = Credentials.anonymous();
+    } else if (authProvider === AuthProvider.APIKey) {
+      credentials = Credentials.apiKey(apiKey);
+    } else if (authProvider === AuthProvider.UserPassword) {
+      credentials = Credentials.emailPassword(username, password);
+    } else {
+      return;
     }
-  }, [result.operation, result.success, logIn, email, password]);
 
-  // The `currentUser` will be set after a successful login.
-  if (atlasApp.currentUser) {
-    return <Navigate to='/tasks' />;
+    setLoginError("");
+    const app: Realm.App = new Realm.App({ id: appID, baseUrl: baseURL });
+
+    // Authenticate the user
+    const user: Realm.User = await app.logIn(credentials);
+    if (props.setApp) {
+      props!.setApp(app);
+    }
+    localStorage.setItem(
+      LOCAL_STORAGE_KEY,
+      JSON.stringify({ baseURL, appID, apiKey, username, password, authProvider }),
+    );
+
+    return user;
   }
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>): void => {
-    event.preventDefault();
-
-    if (authRequest === 'register') {
-      register({ email, password });
-    } else {
-      logIn({ email, password });
+  useEffect(() => {
+    const storedAppInfo = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (!storedAppInfo) {
+      return;
     }
-  };
+    try {
+      const parsedAppInfo = JSON.parse(storedAppInfo);
 
-  const handleButtonClicked = (event: FormEvent<HTMLButtonElement>): void => {
-    setAuthRequest(event.currentTarget.value as 'login' | 'register');
+      setBaseURL(parsedAppInfo.baseURL || "");
+      setAppID(parsedAppInfo.appID || "");
+      setApiKey(parsedAppInfo.apiKey || "");
+      setUsername(parsedAppInfo.username || "");
+      setPassword(parsedAppInfo.password || "");
+      setAuthProvider(parsedAppInfo.authProvider || "");
+
+      if (parsedAppInfo.authProvider) {
+        // try to reuse cached creds
+        // tryLogin(
+        //   parsedAppInfo.baseURL,
+        //   parsedAppInfo.appID,
+        //   parsedAppInfo.apiKey,
+        //   parsedAppInfo.username,
+        //   parsedAppInfo.password,
+        //   parsedAppInfo.authProvider,
+        // );
+      }
+    } catch (e) {}
+  }, []);
+
+  const login = async () => {
+    localStorage.removeItem(LOCAL_STORAGE_KEY);
+    setLoginError("");
+
+    try {
+      tryLogin(baseURL, appID, apiKey, username, password, authProvider);
+    } catch (err: any) {
+      setLoginError(err.message);
+    }
   };
 
   return (
     <div className={styles.container}>
-      <img
-        alt='Atlas Device Sync'
-        className={styles.logo}
-        src={logo}
-      />
-      <h1>
-      Atlas Device SDK for Web
-      </h1>
-      <form onSubmit={handleSubmit} className={styles.form}>
-        <input
-          className={styles.input}
-          type='text'
-          placeholder='Email'
-          value={email}
-          onChange={(event) => setEmail(event.currentTarget.value)}
-          autoCorrect='off'     // Safari only
-          autoCapitalize='none' // Safari only
-        />
-        <input
-          className={styles.input}
-          type='password'
-          placeholder='Password (min. 6 chars)'
-          value={password}
-          onChange={(event) => setPassword(event.currentTarget.value)}
-        />
-        {result.error && (
-          <p className={styles.error}>
-            {result.error.message}
-          </p>
+      <img alt="Atlas Device Sync" className={styles.logo} src={logo} />
+      <h1>Atlas Device Sync Playground</h1>
+      <form className={styles.form}>
+        <div className="input-group">
+          <label>Base URL</label>
+          <select className={styles.input} onChange={(e) => setBaseURL(e.target.value)} value={baseURL}>
+            {[
+              "https://realm.mongodb.com",
+              "https://realm-qa.mongodb.com",
+              "https://realm-dev.mongodb.com",
+              "https://realm-staging.mongodb.com",
+              "http://localhost:8080",
+            ].map((b) => (
+              <option value={b} key={b}>
+                {b}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="input-group">
+          <label>App ID</label>
+          <input
+            className={styles.input}
+            type="text"
+            placeholder="myapp-foo"
+            onChange={(e) => setAppID(e.target.value)}
+            value={appID}
+          />
+        </div>
+        <div className="input-group">
+          <br />
+          <label>Auth Provider</label>
+          <select
+            className={styles.input}
+            onChange={(e) => setAuthProvider(e.target.value as AuthProvider)}
+            value={authProvider}
+          >
+            {[AuthProvider.UserPassword, AuthProvider.Anonymous, AuthProvider.APIKey].map((b) => (
+              <option value={b} key={b}>
+                {b}
+              </option>
+            ))}
+          </select>
+        </div>
+        {authProvider === AuthProvider.APIKey && (
+          <div className="input-group">
+            <label>API Key</label>
+            <input className={styles.input} type="text" onChange={(e) => setApiKey(e.target.value)} value={apiKey} />
+          </div>
         )}
+        {authProvider === AuthProvider.UserPassword && (
+          <div className="input className={styles.input}-group">
+            <label>Username</label>
+            <input
+              className={styles.input}
+              type="text"
+              onChange={(e) => setUsername(e.target.value)}
+              value={username}
+            />
+          </div>
+        )}
+        {authProvider === AuthProvider.UserPassword && (
+          <div className="input-group">
+            <label>Password</label>
+            <input
+              className={styles.input}
+              type="password"
+              onChange={(e) => setPassword(e.target.value)}
+              value={password}
+            />
+          </div>
+        )}
+
         <div className={styles.buttons}>
           <button
             className={styles.button}
-            type='submit'
-            value='login'
-            onClick={handleButtonClicked}
+            onClick={(e) => {
+              e.preventDefault();
+              login();
+            }}
+            disabled={appID.length === 0}
           >
-            Log In
-          </button>
-          <button
-            className={styles.button}
-            type='submit'
-            value='register'
-            onClick={handleButtonClicked}
-          >
-            Register
+            log in
           </button>
         </div>
+        {loginError && <div className={styles.error}>{loginError}</div>}
       </form>
     </div>
   );

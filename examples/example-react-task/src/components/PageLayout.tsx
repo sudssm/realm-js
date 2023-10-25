@@ -16,23 +16,23 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 
-import { NavBar } from './NavBar';
-import styles from '../styles/PageLayout.module.css';
+import { NavBar } from "./NavBar";
+import styles from "../styles/PageLayout.module.css";
 
 type PageLayoutProps = {
+  app: Realm.App;
+  onLogout: () => void;
   children: React.ReactNode;
 };
 
 /**
  * Wrapper around the `Outlet` for providing a consistent layout.
  */
-export function PageLayout({ children }: PageLayoutProps) {
+export function PageLayout({ app, children, onLogout }: PageLayoutProps) {
   return (
     <div className={styles.container}>
-      <NavBar />
-      <main>
-        {children}
-      </main>
+      <NavBar app={app} onLogout={onLogout} />
+      <main>{children}</main>
     </div>
   );
 }
