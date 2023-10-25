@@ -181,7 +181,6 @@ function ObjectView(props: { realm: Realm; object: Realm.Object; rerender: numbe
 
   useEffect(() => {
     const [path, value] = diffNewData(previous, serialized);
-    console.log("got update", path, value);
     if (!value) {
       return;
     }

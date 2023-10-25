@@ -43,6 +43,12 @@ export default function LoginPage(props: LoginProps) {
   const [loginError, setLoginError] = useState<string>("");
   const [authProvider, setAuthProvider] = useState<AuthProvider>(AuthProvider.Anonymous);
 
+  async function getHostname(baseURL: string, appID: string): Promise<string> {
+    const response = await fetch(baseURL + "/api/client/v2.0/app/" + appID + "/location");
+    const data = await response.json();
+    return data.hostname;
+  }
+
   async function tryLogin(
     baseURL: string,
     appID: string,
@@ -63,7 +69,8 @@ export default function LoginPage(props: LoginProps) {
     }
 
     setLoginError("");
-    const app: Realm.App = new Realm.App({ id: appID, baseUrl: baseURL });
+    const hostname = await getHostname(baseURL, appID);
+    const app: Realm.App = new Realm.App({ id: appID, baseUrl: hostname });
 
     // Authenticate the user
     const user: Realm.User = await app.logIn(credentials);
@@ -112,7 +119,7 @@ export default function LoginPage(props: LoginProps) {
     setLoginError("");
 
     try {
-      tryLogin(baseURL, appID, apiKey, username, password, authProvider);
+      await tryLogin(baseURL, appID, apiKey, username, password, authProvider);
     } catch (err: any) {
       setLoginError(err.message);
     }
