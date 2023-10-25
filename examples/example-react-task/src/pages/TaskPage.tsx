@@ -147,6 +147,7 @@ function TableView(props: { realm: Realm; table: string; rerender: number }) {
         <label>Filter</label>
         <input
           className={styles.input}
+          style={{ fontFamily: "monospace" }}
           type="text"
           placeholder="truepredicate"
           value={filter}

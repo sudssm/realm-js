@@ -2,6 +2,6 @@
     transition: background-color 1s linear;
   }
 
-.jsoneditor-menu, .jsoneditor-contextmenu-button, .jsoneditor-dragarea {
+.jsoneditor-menu button, .jsoneditor-contextmenu-button, .jsoneditor-dragarea {
     display: none !important;
 }
