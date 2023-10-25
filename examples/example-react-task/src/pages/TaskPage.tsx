@@ -31,9 +31,9 @@ import { Node } from "jsoneditor";
 export function TaskPage(props: { realm: Realm; tables: string[]; rerender: number }) {
   const datas = props.tables.map(function (table) {
     return (
-      <>
-        <TableView key={table} realm={props.realm} table={table} rerender={props.rerender} />
-      </>
+      <div key={table}>
+        <TableView realm={props.realm} table={table} rerender={props.rerender} />
+      </div>
     );
   });
 
@@ -45,10 +45,11 @@ function TableView(props: { realm: Realm; table: string; rerender: number }) {
   const [query, setQuery] = useState("truepredicate");
   const [filter, setFilter] = useState("truepredicate");
   const [objects, setObjects] = useState<any>();
+  const [sort, setSort] = useState("");
   const [limit, setLimit] = useState(10);
   const [error, setError] = useState("");
 
-  const updateQuery = async (query: string, filter: string, limit: number) => {
+  const updateQuery = async (query: string, filter: string, limit: number, sort: string) => {
     setError("");
     if (!query) {
       query = "truepredicate";
@@ -69,7 +70,10 @@ function TableView(props: { realm: Realm; table: string; rerender: number }) {
         subs.add(realm.objects(props.table).filtered(query), { name: props.table });
       });
 
-      const results = props.realm.objects(props.table).filtered(filter);
+      let results = props.realm.objects(props.table).filtered(filter);
+      if (sort) {
+        results = results.sorted(sort);
+      }
       setObjects(results.slice(0, limit));
     } catch (e: any) {
       console.error(e);
@@ -78,15 +82,15 @@ function TableView(props: { realm: Realm; table: string; rerender: number }) {
   };
 
   useEffect(() => {
-    updateQuery(query, filter, limit);
+    updateQuery(query, filter, limit, sort);
   }, []);
 
   const objectsDom = (objects as Realm.Object[])?.map(function (object) {
     const key = object._objectKey();
     return (
-      <p style={{ paddingBottom: 15 }}>
-        <ObjectView key={key} realm={props.realm} object={object} rerender={props.rerender} />
-      </p>
+      <div key={key} style={{ paddingBottom: 15 }}>
+        <ObjectView realm={props.realm} object={object} rerender={props.rerender} />
+      </div>
     );
   });
   return (
@@ -99,7 +103,6 @@ function TableView(props: { realm: Realm; table: string; rerender: number }) {
           type="text"
           placeholder="truepredicate"
           value={query}
-          defaultValue={"truepredicate"}
           onChange={(e) => setQuery(e.target.value)}
         />
         <label>Filter</label>
@@ -108,7 +111,6 @@ function TableView(props: { realm: Realm; table: string; rerender: number }) {
           type="text"
           placeholder="truepredicate"
           value={filter}
-          defaultValue={"truepredicate"}
           onChange={(e) => setFilter(e.target.value)}
         />
         <label>Limit</label>
@@ -117,8 +119,15 @@ function TableView(props: { realm: Realm; table: string; rerender: number }) {
           type="text"
           placeholder="10"
           value={limit}
-          defaultValue={10}
           onChange={(e) => setLimit(parseInt(e.target.value) || 10)}
+        />
+        <label>Sort</label>
+        <input
+          className={styles.input}
+          type="text"
+          placeholder="fieldname"
+          value={sort}
+          onChange={(e) => setSort(e.target.value)}
         />
 
         <div className={styles.buttons}>
@@ -126,7 +135,7 @@ function TableView(props: { realm: Realm; table: string; rerender: number }) {
             className={styles.button}
             onClick={(e) => {
               e.preventDefault();
-              updateQuery(query, filter, limit);
+              updateQuery(query, filter, limit, sort);
             }}
           >
             Update
